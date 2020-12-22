@@ -20,16 +20,6 @@ def parse_block(input_block):
     return name, picture
 
 
-def get_all_sides_except(space, tile_ex):
-    out = []
-    for tile, pic in space.items():
-        if tile_ex == tile:
-            continue
-        for side in get_sides(pic):
-            out.append(side)
-    return out
-
-
 class Tile:
     def __init__(self, position):
         self.position = np.array(position)
@@ -44,8 +34,10 @@ class Tile:
         self.picture = arr
         self.left, self.right, self.top, self.bottom = get_sides(arr)
         # which tile, which position to update, and the matching side
-        updates = [(self.position + [-1, 0], 'bottom', self.top), (self.position + [1, 0], 'top', self.bottom),
-                   (self.position + [0, -1], 'right', self.left), (self.position + [0, 1], 'left', self.right)]
+        updates = [(self.position + [-1, 0], 'bottom', self.top),
+                   (self.position + [1, 0], 'top', self.bottom),
+                   (self.position + [0, -1], 'right', self.left),
+                   (self.position + [0, 1], 'left', self.right)]
 
         return updates
 
@@ -119,35 +111,55 @@ def update_neighbours(update, tiles):
             tiles.append(new_tile)
 
 
-def tile_passing(picture, tile: Tile):
-    if tile.passed():
-        raise ValueError('tile already passed')
+def print_array(array):
+    for row in [''.join([a_ if a_ else ' ' for a_ in a]) for a in array]:
+        print(row)
 
+
+def print_tiles(tiles) -> np.array:
+    positions = np.asarray([tile.position for tile in tiles])
+    min_row, min_col, max_row, max_col = min(positions[:, 0]), min(positions[:, 1]), max(positions[:, 0]), max(positions[:, 1])
+    w, h = tiles[0].picture.shape
+    arr_out = np.zeros(((max_row - min_row + 1) * h, (max_col - min_col + 1) * w), dtype=str)
+    for tile in tiles:
+        row, col = tile.position - np.array([min_row, min_col])
+        if tile.picture is not None:
+            arr_out[row * h: (row + 1) * h, col * w: (col + 1)* w] = tile.picture
+        else:
+            if tile.left is not None:
+                arr_out[row * h: (row + 1) * h, col * w] = tile.left
+            if tile.right is not None:
+                arr_out[row * h: (row + 1) * h, (col + 1) * w - 1] = tile.right
+            if tile.top is not None:
+                arr_out[row * h, col * w: (col + 1) * w] = tile.top
+            if tile.bottom is not None:
+                arr_out[(row + 1) * h - 1, col * w: (col + 1) * w] = tile.bottom
+    print_array(arr_out)
+    return arr_out[h: (max_row - min_row) * h, w: (max_col - min_col) * w]
 
 
 if __name__ == '__main__':
     data = read_input_blocks('input_ex')
     space = {}
-    corner_tile = Tile((0, 0))
-    tiles = [corner_tile]
 
     for block in data:
         name, picture = parse_block(block)
         space.update(**{name: picture})
 
-    first_name = list(space.keys())[8]
+    first_tile = Tile((0, 0))
+    tiles = [first_tile]
+    first_name = list(space.keys())[6]
     # print(space[list(space.keys())[0]])
     tiles_left = space.copy()
-    first_pic = space[first_name]
-    # first_name, first_pic = corners[0]
-    corner_tile.tile_name = first_name
-    neighbours_update = corner_tile.update_picture(first_pic)
+    first_tile.tile_name = first_name
+    neighbours_update = first_tile.update_picture(space[first_name])
     tiles_left.pop(first_name)
 
     for _ in range(1000):
         update_neighbours(neighbours_update, tiles)
-        # print('updaqted neighbours', tiles)
-        old_update = neighbours_update.copy()
+        neighbours_update = []
+
+        old_len_tiles = len(tiles_left)
         for tile in tiles:
             new_passing = 0
             name_passing = None
@@ -161,16 +173,19 @@ if __name__ == '__main__':
                     pic_passing = picture
                     name_passing = tile_left
             if new_passing == 1:
-                neighbours_update = tile.update_picture(pic_passing)
+                for update in tile.update_picture(pic_passing):
+                    neighbours_update.append(update)
                 tile.tile_name = name_passing
                 tiles_left.pop(name_passing)
 
-        if np.array_equal(np.array(neighbours_update), np.array(old_update)):
+        if len(tiles_left) == old_len_tiles:
             break
-        print(len(tiles_left))
+        print(len(tiles_left), old_len_tiles)
 
-    print(tiles)
-    positions = sorted([(i, tile.position) for i, tile in enumerate(tiles)],
-                       key=lambda x: x[1][0] * 10000 + x[1][1])
-    print(positions)
-    print(tiles[7].picture, '\n', tiles[3].picture, '\n', tiles[0].picture)
+    arr = print_tiles(tiles)
+    # positions = sorted([(i, tile.position) for i, tile in enumerate(tiles)],
+    #                    key=lambda x: x[1][0] * 10000 + x[1][1])
+    # print(positions)
+    print(arr.shape)
+
+    # np.array(arr).
