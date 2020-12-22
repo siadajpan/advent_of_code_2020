@@ -12,7 +12,7 @@ def parse_limits(limit):
 
 def check_limit(number, limits):
     for l_low, l_high in limits:
-        if number >= l_low and number <= l_high:
+        if l_low <= number <= l_high:
             return True
 
     return False
